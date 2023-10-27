@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://unpkg.com/konva@9.2.1/konva.min.js"></script>
+    <script src="./font.js"></script>
+    <meta charset="utf-8" />
+    <title>Editor</title>
+    <style>
+        @font-face {
+            font-family: 'Comic Neue';
+            font-style: normal;
+            font-weight: 400;
+            src: url(https://fonts.gstatic.com/s/comicneue/v8/4UaHrEJDsxBrF37olUeD96rp5w.woff2) format('woff2');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@100;300&family=Roboto:wght@300&display=swap');
+
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+        }
+
+        .shapes {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            top: 12%;
+            left: 2%;
+        }
+
+        .text {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            top: 32%;
+            left: 2%;
+        }
+
+        #images {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            top: 53%;
+            left: 2%;
+        }
+
+        #images2 {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            top: 53%;
+            left: 2%;
+        }
+
+        .draw {
+            position: absolute;
+            width: 10%;
+            height: 10%;
+            top: 75%;
+            left: 2%;
+        }
+
+        #container {
+            position: absolute;
+            width: 73%;
+            top: 5%;
+            left: 25%;
+            border: 1px solid black;
+        }
+
+        #stroke-width {
+            position: absolute;
+            top: 2.1%;
+            right: 18%;
+        }
+
+        #stroke-color {
+            position: absolute;
+            top: 1.6%;
+            right: 13%;
+        }
+
+        #stopColor {
+            position: absolute;
+            top: 2%;
+            right: 23%;
+        }
+
+        #scenes {
+            width: 30%;
+        }
+
+        #shapePannel {
+            position: absolute;
+            display: grid;
+            left: 16%;
+            top: 10%;
+            grid-template-columns: auto;
+            height: 80% !important;
+            width: 7%;
+            overflow-y: auto;
+            visibility: hidden;
+        }
+
+        #fontSection {}
+    </style>
+</head>
+
+<body>
+</body>
+
+<div id="container"></div>
+
+<button class="shapes" onclick="showshape()">Shapes</button>
+<button class="text" onclick="addText()">Text</button>
+<button id="images2">Upload Image</button>
+<input type="file" id="images" multiple accept="image/*" />
+<button class="draw" onclick="draw()">Draw</button>
+<input type="number" min="0" max="50" id="stroke-width" onchange="getStrokeWidth()" />
+<input type="color" min="0" max="50" id="stroke-color" onchange="getStrokeColor()" />
+<input type="button" id="stopColor" value="Done" onclick="stopColoring()" />
+
+<div class="textDropdown">
+
+</div>
+
+<div id="shapePannel">
+    <img src="../Ellipse.png" onclick="addshape('Circle')" width="65" />
+    <img src="../Polygon.png" onclick="addshape('Triangle')" width="65" />
+    <img src="../Rectangle.png" onclick="addshape('Rectangle')" width="65" />
+    <img src="../Star.png" onclick="addshape('Star')" width="65" />
+</div>
+
+<div>
+
+</div>
+
+<script>
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+    var textNode;
+
+    var stage = new Konva.Stage({
+        container: 'container',
+        width: 1000,
+        height: 650,
+    });
+
+    var layer = new Konva.Layer();
+    var nodeLayer = new Konva.Layer();
+    stage.add(layer, nodeLayer);
+
+    let nodeElement
+    let transformElement
+    var selectImages = [];
+    var drawAble = false
+
+    const chooseFile = document.getElementById("images");
+
+    var container = stage.container();
+    container.tabIndex = 1;
+    container.focus();
+
+    container.addEventListener('keydown', function (e) {
+        if (e.keyCode === 46) {
+            nodeElement.destroy();
+            nodeLayer.destroyChildren();
+        }
+    })
+
+    chooseFile.addEventListener("change", function () {
+        addImage();
+    });
+
+    function stopColoring() {
+        drawAble = false;
+        var json = stage.toJSON();
+        textNode.fontFamily(fontObject.fontFamily);
+        // console.log(fontObject.font-weight,'fon');
+        // console.log(json, 'json------------------>>>>>>>>');
+    }
+
+
+    function addImage() {
+        const files = chooseFile.files;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file) {
+                const fileReader = new FileReader();
+                fileReader.readAsDataURL(file);
+                fileReader.addEventListener("load", function () {
+                    console.log(this.result);
+                    const imageUrl = this.result;
+
+                    var imageObj = new Image();
+                    imageObj.onload = function () {
+                        var yoda = new Konva.Image({
+                            x: 250,
+                            y: 50,
+                            image: imageObj,
+                            width: 106,
+                            height: 118,
+                            draggable: true
+                        });
+                        layer.add(yoda);
+                        stage.draw();
+
+                        yoda.on('click', () => {
+                            createNode(yoda);
+                        });
+                    };
+                    imageObj.src = imageUrl;
+                });
+            }
+        }
+    }
+
+    var drawLine = [];
+    var line;
+
+
+
+    function addText() {
+        textNode = new Konva.Text({
+            text: 'Some text here',
+            x: 50,
+            y: 80,
+            fontSize: 20,
+            draggable: true,
+            fontFamily: 'Roboto',
+            width: 200,
+        });
+        layer.add(textNode);
+        textNode.on('click', () => {
+            tranform(textNode);
+        })
+    }
+
+    // stage.on('click',()=>{
+    //     nodeLayer.destroyChildren();
+    // })
+
+    function getStrokeWidth() {
+        var strokeLength = document.getElementById("stroke-width").value
+        line.strokeWidth(strokeLength);
+    }
+
+    function getStrokeColor() {
+        var strokeColor = document.getElementById("stroke-color").value
+        line.stroke(strokeColor);
+    }
+
+
+    function draw(params) {
+        drawAble = true
+
+        line = new Konva.Line({
+            points: [],
+            stroke: 'red',
+            strokeWidth: 5,
+            lineCap: 'round',
+            lineJoin: 'round',
+            offsetx: stage.getPointerPosition()
+        });
+        stage.on('mousedown', () => {
+            stage.on('pointermove', () => {
+                if (drawAble === true) {
+                    console.log(drawAble, 'drawAbledrawAbledrawAble');
+                    console.log('mouseMove');
+                    layer.add(line);
+                    var pos = stage.getPointerPosition();
+                    drawLine.push(pos.x, pos.y);
+                    line.points(drawLine);
+                }
+            })
+            stage.on('mouseup', () => {
+                stage.off('pointermove')
+                drawLine = []
+            })
+        })
+    }
+
+    function showshape() {
+        var visible = document.getElementById('shapePannel').style.visibility;
+        if (visible === 'visible') {
+            document.getElementById('shapePannel').style.visibility = 'hidden';
+        } else {
+            document.getElementById('shapePannel').style.visibility = 'visible';
+        }
+    }
+
+
+    function addshape(shape) {
+
+        switch (shape) {
+            case 'Rectangle':
+                var rect1 = new Konva.Rect({
+                    x: 20,
+                    y: 20,
+                    width: 100,
+                    height: 50,
+                    fill: 'green',
+                    stroke: 'black',
+                    strokeWidth: 4,
+                    draggable: true
+                });
+                layer.add(rect1);
+                createNode(rect1);
+                break;
+
+            case 'Circle':
+
+                var circle = new Konva.Circle({
+                    x: stage.width() / 2,
+                    y: stage.height() / 2,
+                    radius: 70,
+                    fill: 'red',
+                    stroke: 'black',
+                    strokeWidth: 4,
+                    draggable: true
+                });
+                layer.add(circle);
+                circle.on('click', () => {
+                    createNode(circle);
+                })
+                break;
+
+            case 'Triangle':
+                var hexagon = new Konva.RegularPolygon({
+                    x: 100,
+                    y: 150,
+                    sides: 6,
+                    radius: 70,
+                    fill: 'red',
+                    stroke: 'black',
+                    strokeWidth: 4,
+                    draggable: true
+                });
+                layer.add(hexagon);
+                hexagon.on('click', () => {
+                    createNode(hexagon);
+                })
+                break;
+
+            case 'Star':
+                var star = new Konva.Star({
+                    x: stage.width() / 2,
+                    y: stage.height() / 2,
+                    numPoints: 6,
+                    innerRadius: 40,
+                    outerRadius: 70,
+                    fill: 'yellow',
+                    stroke: 'black',
+                    strokeWidth: 4,
+                    draggable: true
+                });
+                layer.add(star);
+                star.on('click', () => {
+                    createNode(star);
+                })
+                break;
+
+            default:
+                break;
+        }
+
+
+        // var rect1 = new Konva.Rect({
+        //     x: 100,
+        //     y: 50,
+        //     width: 100,
+        //     height: 50,
+        //     fill: 'green',
+        //     stroke: 'black',
+        //     strokeWidth: 4,
+        //     draggable: true
+        // });
+        // layer.add(rect1);
+
+        // rect1.on('click', () => {
+        //     createNode(rect1)
+        // })
+    }
+
+    var tr;
+    var container = stage.container();
+
+    const createNode = (node) => {
+        nodeLayer.destroyChildren();
+        nodeElement = node;
+        tr = new Konva.Transformer({
+            nodes: [node],
+            enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-right', 'middle-left', 'bottom-left', 'bottom-center', 'bottom-right'],
+            boundBoxFunc: function (oldBox, newBox) {
+                newBox.width = Math.max(30, newBox.width);
+                return newBox;
+            },
+        });
+        nodeLayer.add(tr);
+    }
+
+
+    const tranform = (node) => {
+
+        node.on('click', () => {
+            createNode(node);
+        })
+
+        node.on('transform', function () {
+            node.setAttrs({
+                width: node.width() * node.scaleX(),
+                scaleX: 1,
+            });
+        });
+
+
+        node.on('dblclick dbltap', () => {
+            node.hide();
+            tr.hide();
+            var textPosition = node.absolutePosition();
+
+            var areaPosition = {
+                x: stage.container().offsetLeft + textPosition.x,
+                y: stage.container().offsetTop + textPosition.y,
+            };
+            var textarea = document.createElement('textarea');
+            document.body.appendChild(textarea);
+            // textarea.value = node.text();
+            textarea.style.position = 'absolute';
+            textarea.style.top = areaPosition.y + 'px';
+            textarea.style.left = areaPosition.x + 'px';
+            textarea.style.width = node.width() - node.padding() * 2 + 'px';
+            textarea.style.height =
+                node.height() - node.padding() * 2 + 5 + 'px';
+            textarea.style.fontSize = node.fontSize() + 'px';
+            textarea.style.border = 'none';
+            textarea.style.padding = '0px';
+            textarea.style.margin = '0px';
+            textarea.style.overflow = 'hidden';
+            textarea.style.background = 'none';
+            textarea.style.outline = 'none';
+            textarea.style.resize = 'none';
+            textarea.style.lineHeight = node.lineHeight();
+            textarea.style.fontFamily = node.fontFamily();
+            textarea.style.transformOrigin = 'left top';
+            textarea.style.textAlign = node.align();
+            textarea.style.color = node.fill();
+            rotation = node.rotation();
+            var transform = '';
+            if (rotation) {
+                transform += 'rotateZ(' + rotation + 'deg)';
+            }
+
+            var px = 0;
+            var isFirefox =
+                navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+            if (isFirefox) {
+                px += 2 + Math.round(node.fontSize() / 20);
+            }
+            transform += 'translateY(-' + px + 'px)';
+
+            textarea.style.transform = transform;
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 3 + 'px';
+
+            textarea.focus();
+
+            function removeTextarea() {
+                textarea.parentNode.removeChild(textarea);
+                window.removeEventListener('click', handleOutsideClick);
+                node.show();
+                tr.show();
+                tr.forceUpdate();
+            }
+
+            function setTextareaWidth(newWidth) {
+                if (!newWidth) {
+                    newWidth = node.placeholder.length * node.fontSize();
+                }
+                // some extra fixes on different browsers
+                var isSafari = /^((?!chrome|android).)*safari/i.test(
+                    navigator.userAgent
+                );
+                var isFirefox =
+                    navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+                if (isSafari || isFirefox) {
+                    newWidth = Math.ceil(newWidth);
+                }
+
+                var isEdge =
+                    document.documentMode || /Edge/.test(navigator.userAgent);
+                if (isEdge) {
+                    newWidth += 1;
+                }
+                textarea.style.width = newWidth + 'px';
+            }
+
+            textarea.addEventListener('keydown', function (e) {
+                if (e.keyCode === 13 && !e.shiftKey) {
+                    node.text(textarea.value);
+                    removeTextarea();
+                }
+                if (e.keyCode === 27) {
+                    removeTextarea();
+                }
+            });
+
+            textarea.addEventListener('keydown', function (e) {
+                scale = node.getAbsoluteScale().x;
+                setTextareaWidth(node.width() * scale);
+                textarea.style.height = 'auto';
+                textarea.style.height =
+                    textarea.scrollHeight + node.fontSize() + 'px';
+            });
+
+            function handleOutsideClick(e) {
+                if (e.target !== textarea) {
+                    node.text(textarea.value);
+                    removeTextarea();
+                }
+            }
+            setTimeout(() => {
+                window.addEventListener('click', handleOutsideClick);
+            });
+        });
+
+    }
+
+    // selection area 
+
+    var selectionRectangle = new Konva.Rect({
+        fill: 'rgba(0,0,255,0.5)',
+        visible: false,
+    });
+    layer.add(selectionRectangle);
+
+    var x1, y1, x2, y2;
+
+    stage.on('mousedown touchstart', (e) => {
+        if (e.target !== stage) {
+            return;
+        }
+        e.evt.preventDefault();
+        x1 = stage.getPointerPosition().x;
+        y1 = stage.getPointerPosition().y;
+        x2 = stage.getPointerPosition().x;
+        y2 = stage.getPointerPosition().y;
+
+        selectionRectangle.visible(true);
+        selectionRectangle.width(0);
+        selectionRectangle.height(0);
+    });
+
+    stage.on('mousemove touchmove', (e) => {
+        if (!selectionRectangle.visible()) {
+            return;
+        }
+        if (drawAble === true) {
+            return
+        }
+
+        e.evt.preventDefault();
+        x2 = stage.getPointerPosition().x;
+        y2 = stage.getPointerPosition().y;
+
+        selectionRectangle.setAttrs({
+            x: Math.min(x1, x2),
+            y: Math.min(y1, y2),
+            width: Math.abs(x2 - x1),
+            height: Math.abs(y2 - y1),
+        });
+    });
+
+    stage.on('mouseup touchend', (e) => {
+        if (!selectionRectangle.visible()) {
+            return;
+        }
+        e.evt.preventDefault();
+        setTimeout(() => {
+            selectionRectangle.visible(false);
+        });
+
+
+
+        nodeLayer.destroyChildren();
+        var shapes = layer.children;
+        var box = selectionRectangle.getClientRect();
+        console.log(layer.children, shapes, 'shapes------------------->');
+        var selected = shapes.filter((shape) =>
+            Konva.Util.haveIntersection(box, shape.getClientRect())
+        );
+        console.log(selected, 'trrrrrrrrr');
+        // tr.nodes(selected);
+    });
+
+    stage.on('click tap', function (e) {
+        if (selectionRectangle.visible()) {
+            selectImages = [];
+            nodeLayer.destroyChildren();
+            console.log(selectImages, "selectedImage");
+            return;
+        }
+        if (e.target === stage) {
+            tr.nodes([]);
+            selectImages = [];
+            nodeLayer.destroyChildren();
+            console.log(selectImages, "selectedImage");
+            return;
+        }
+
+
+        const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+        const isSelected = tr.nodes().indexOf(e.target) >= 0;
+        console.log(e.target, "checkkkkkkkkkkkkkkkkk");
+
+        if (!metaPressed && !isSelected) {
+            tr.nodes([e.target]);
+        } else if (metaPressed && isSelected) {
+            selectImages.push(e.target);
+            console.log(selectImages, "selectedImage");
+            tr.nodes(selectImages);
+        } else if (metaPressed && !isSelected) {
+            // add the node into selection
+            const nodes = tr.nodes().concat([e.target]);
+            tr.nodes(nodes);
+        }
+    });
+
+
+    var style = document.createElement('style');
+
+
+
+
+    console.log(fruits.get('cosmicNeu'));
+
+    var fontObject = fruits.get('cosmicNeu');
+
+    // add the font face using script ---------------------------------->
+
+    style.textContent = `
+        @font-face {
+            font-family: ${fontObject.fontFamily};
+            font-style: ${fontObject.fontStyle};
+            font-weight: ${fontObject.fontWeight};
+            font-display: ${fontObject.fontDisplay};
+            src: ${fontObject.src};
+            unicode-range: ${fontObject.unicodeRange};
+        }
+    `;
+
+    //  Append the style element to the head of the document
+    document.head.appendChild(style);
+
+</script>
+</body>
+
+</html>
